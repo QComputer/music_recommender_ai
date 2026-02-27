@@ -50,7 +50,7 @@ class Storage:
         data: List[Dict[str, Any]], 
         path: Optional[str] = None
     ) -> str:
-        """Save manifest to Parquet file.
+        """Save manifest to Parquet file (or CSV as fallback).
         
         Args:
             data: List of track dictionaries.
@@ -67,14 +67,27 @@ class Storage:
         # Ensure output directory exists
         os.makedirs(os.path.dirname(path), exist_ok=True)
         
-        # Save to Parquet
-        df.to_parquet(path, index=False)
-        logger.info(f"Manifest saved to: {path}")
+        # Try parquet first, fall back to CSV
+        parquet_path = path
+        csv_path = path.replace('.parquet', '.csv') if path.endswith('.parquet') else path + '.csv'
         
-        return path
+        try:
+            # Save to Parquet
+            df.to_parquet(parquet_path, index=False)
+            logger.info(f"Manifest saved to: {parquet_path}")
+            return parquet_path
+        except Exception as e:
+            logger.warning(f"Could not save as Parquet, falling back to CSV: {e}")
+            try:
+                df.to_csv(csv_path, index=False)
+                logger.info(f"Manifest saved to: {csv_path}")
+                return csv_path
+            except Exception as e2:
+                logger.error(f"Could not save manifest: {e2}")
+                raise
     
     def load_manifest(self, path: Optional[str] = None) -> pd.DataFrame:
-        """Load manifest from Parquet file.
+        """Load manifest from Parquet file (or CSV as fallback).
         
         Args:
             path: Optional custom path. Uses default if None.
@@ -85,14 +98,29 @@ class Storage:
         if path is None:
             path = self.manifest_path
         
+        # Try parquet first, then CSV
         if not os.path.exists(path):
-            logger.warning(f"Manifest not found: {path}")
-            return pd.DataFrame()
+            # Try CSV version
+            csv_path = path.replace('.parquet', '.csv') if path.endswith('.parquet') else path + '.csv'
+            if os.path.exists(csv_path):
+                path = csv_path
+            else:
+                logger.warning(f"Manifest not found: {path}")
+                return pd.DataFrame()
         
-        df = pd.read_parquet(path)
-        logger.info(f"Manifest loaded: {len(df)} tracks from {path}")
-        
-        return df
+        try:
+            df = pd.read_parquet(path)
+            logger.info(f"Manifest loaded: {len(df)} tracks from {path}")
+            return df
+        except Exception as e:
+            logger.warning(f"Could not read Parquet, trying CSV: {e}")
+            try:
+                df = pd.read_csv(path)
+                logger.info(f"Manifest loaded: {len(df)} tracks from {path}")
+                return df
+            except Exception as e2:
+                logger.warning(f"Could not load manifest: {e2}")
+                return pd.DataFrame()
     
     def update_manifest(
         self, 

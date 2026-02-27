@@ -71,8 +71,12 @@ class FeatureExtractor:
             )
             return y, sr
         except Exception as e:
-            logger.error(f"Error loading audio from {file_path}: {e}")
-            raise
+            error_msg = str(e)
+            # Provide more helpful error message
+            if "m4a" in file_path.lower() or "ffmpeg" in error_msg.lower():
+                error_msg += ". Install ffmpeg for M4A support: pip install imageio-ffmpeg"
+            logger.error(f"Error loading audio from {file_path}: {error_msg}")
+            raise RuntimeError(f"Could not load audio: {error_msg}")
     
     def extract_features(self, file_path: str) -> Dict[str, Any]:
         """Extract all features from audio file.
@@ -97,18 +101,18 @@ class FeatureExtractor:
             
             # --- MFCCs ---
             mfccs = self._librosa.feature.mfcc(y=y, sr=sr, n_mfcc=self.n_mfcc)
-            features["mfcc_mean"] = mfccs.mean(axis=1).tolist()
-            features["mfcc_std"] = mfccs.std(axis=1).tolist()
+            features["mfcc_mean"] = [float(x) for x in mfccs.mean(axis=1)]
+            features["mfcc_std"] = [float(x) for x in mfccs.std(axis=1)]
             
             # --- Delta MFCCs ---
             delta_mfccs = self._librosa.feature.delta(mfccs)
-            features["delta_mfcc_mean"] = delta_mfccs.mean(axis=1).tolist()
-            features["delta_mfcc_std"] = delta_mfccs.std(axis=1).tolist()
+            features["delta_mfcc_mean"] = [float(x) for x in delta_mfccs.mean(axis=1)]
+            features["delta_mfcc_std"] = [float(x) for x in delta_mfccs.std(axis=1)]
             
             # --- Chroma ---
             chroma = self._librosa.feature.chroma_stft(y=y, sr=sr)
-            features["chroma_mean"] = chroma.mean(axis=1).tolist()
-            features["chroma_std"] = chroma.std(axis=1).tolist()
+            features["chroma_mean"] = [float(x) for x in chroma.mean(axis=1)]
+            features["chroma_std"] = [float(x) for x in chroma.std(axis=1)]
             
             # --- Spectral features ---
             # Spectral centroid
@@ -126,10 +130,11 @@ class FeatureExtractor:
             features["spectral_rolloff_mean"] = float(spectral_rolloff.mean())
             features["spectral_rolloff_std"] = float(spectral_rolloff.std())
             
-            # Spectral contrast
+            # --- Spectral contrast
             spectral_contrast = self._librosa.feature.spectral_contrast(y=y, sr=sr)
-            features["spectral_contrast_mean"] = spectral_contrast.mean(axis=1).tolist()
-            features["spectral_contrast_std"] = spectral_contrast.std(axis=1).tolist()
+            # Convert to lists explicitly
+            features["spectral_contrast_mean"] = [float(x) for x in spectral_contrast.mean(axis=1)]
+            features["spectral_contrast_std"] = [float(x) for x in spectral_contrast.std(axis=1)]
             
             # --- RMS energy ---
             rms = self._librosa.feature.rms(y=y)
@@ -143,16 +148,17 @@ class FeatureExtractor:
             
             # --- Tempo and beats ---
             tempo, beats = self._librosa.beat.beat_track(y=y, sr=sr)
-            features["tempo"] = float(tempo)
-            features["beat_count"] = int(beats)
+            # tempo is a scalar, beats is an array of beat positions
+            features["tempo"] = float(tempo) if np.isscalar(tempo) else float(tempo.item()) if hasattr(tempo, 'item') else float(tempo)
+            features["beat_count"] = int(len(beats)) if hasattr(beats, '__len__') else int(beats)
             
             # --- Mel spectrogram (optional) ---
             if self.extract_melspec:
                 mel_spec = self._librosa.feature.melspectrogram(y=y, sr=sr, n_mels=self.n_mels)
                 mel_spec_db = self._librosa.power_to_db(mel_spec, ref=np.max)
-                features["melspec_mean"] = mel_spec_db.mean(axis=1).tolist()
-                features["melspec_std"] = mel_spec_db.std(axis=1).tolist()
-                features["melspec_max"] = mel_spec_db.max(axis=1).tolist()
+                features["melspec_mean"] = [float(x) for x in mel_spec_db.mean(axis=1)]
+                features["melspec_std"] = [float(x) for x in mel_spec_db.std(axis=1)]
+                features["melspec_max"] = [float(x) for x in mel_spec_db.max(axis=1)]
             
             features["success"] = True
             
@@ -160,6 +166,13 @@ class FeatureExtractor:
             logger.error(f"Error extracting features from {file_path}: {e}")
             features["success"] = False
             features["error"] = str(e)
+        
+        # Convert all numpy types to native Python types for DataFrame compatibility
+        for key, value in features.items():
+            if isinstance(value, (np.integer, np.floating)):
+                features[key] = float(value) if isinstance(value, np.floating) else int(value)
+            elif isinstance(value, np.ndarray):
+                features[key] = value.tolist()
         
         return features
     
@@ -183,7 +196,20 @@ class FeatureExtractor:
         for key, value in features.items():
             if isinstance(value, list):
                 for i, v in enumerate(value):
+                    # Ensure each value is a Python native type
+                    if isinstance(v, (np.integer, np.floating)):
+                        v = float(v) if isinstance(v, np.floating) else int(v)
                     flat_features[f"{key}_{i}"] = v
+            elif isinstance(value, np.ndarray):
+                # Handle numpy arrays
+                value_list = value.tolist() if hasattr(value, 'tolist') else list(value)
+                for i, v in enumerate(value_list):
+                    if isinstance(v, (np.integer, np.floating)):
+                        v = float(v) if isinstance(v, np.floating) else int(v)
+                    flat_features[f"{key}_{i}"] = v
+            elif isinstance(value, (np.integer, np.floating)):
+                # Handle numpy scalars
+                flat_features[key] = float(value) if isinstance(value, np.floating) else int(value)
             else:
                 flat_features[key] = value
         

@@ -279,7 +279,7 @@ class Recommender:
                 return []
             query = self._embeddings[track_id].reshape(1, -1)
         elif self._features is not None:
-            query = self._track_ids[track_idx].reshape(1, -1)
+            query = self._features[track_idx].reshape(1, -1)
         else:
             logger.error("No features or embeddings available")
             return []
