@@ -1,0 +1,116 @@
+# Music Recommender AI Configuration
+
+# Scanner settings
+scanner:
+  # Root directory containing music files
+  music_root: "./music"
+  # Supported audio formats
+  supported_formats: ["mp3", "flac", "wav", "m4a"]
+  # Output directories
+  output_dir: "./data"
+  manifest_filename: "manifest.parquet"
+
+# Metadata extraction settings
+metadata:
+  # Normalize string fields
+  normalize_strings: true
+  # Fields to extract
+  fields:
+    - artist
+    - album
+    - title
+    - genre
+    - year
+    - track_number
+    - duration
+    - bitrate
+    - sample_rate
+
+# Audio preprocessing settings
+audio:
+  # Target sample rate for resampling
+  sample_rate: 22050
+  # Convert to mono
+  mono: true
+  # Duration limit in seconds (None = entire file)
+  duration_limit: null
+
+# Feature extraction settings
+features:
+  # MFCC settings
+  n_mfcc: 20
+  # Mel spectrogram settings
+  n_mels: 128
+  # Extract additional features
+  extract_melspec: false
+  # Number of workers for parallel extraction
+  n_workers: 4
+  # Checkpoint file for resumable extraction
+  checkpoint_file: "extraction_checkpoint.json"
+
+# Embedding settings
+embeddings:
+  # Enable embedding extraction (requires tensorflow)
+  enabled: false
+  # Model to use: vggish, yamnet, or None
+  model: null
+  # Embedding dimension (VGGish: 128, YAMNet: 1024)
+  embed_dim: 128
+  # Aggregation method: mean, max, mean_max
+  aggregation: "mean"
+  # Embedding storage: numpy or hdf5
+  storage: "numpy"
+  # HDF5 file path
+  hdf5_path: "embeddings.h5"
+
+# Recommender settings
+recommender:
+  # Feature normalization method: standard, minmax, or none
+  normalization: "standard"
+  # Similarity backend: sklearn, faiss, or hnswlib
+  backend: "sklearn"
+  # Number of neighbors to return
+  default_k: 10
+  # Metadata boost weight (0-1)
+  metadata_boost: 0.0
+  # Use embeddings if available
+  use_embeddings: false
+
+# FAISS index settings (for large libraries)
+faiss:
+  # Index type: Flat, IVF, HNSW
+  index_type: "Flat"
+  # Number of clusters for IVF
+  n_clusters: 100
+  # HNSW parameters
+  hnsw_m: 32
+  hnsw_ef_construction: 200
+
+# HNSWlib settings
+hnswlib:
+  # HNSW parameters
+  M: 32
+  ef_construction: 200
+  ef: 100
+
+# API settings
+api:
+  # Host to bind to
+  host: "0.0.0.0"
+  # Port to bind to
+  port: 8000
+  # Reload on code changes
+  reload: false
+
+# Logging settings
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "music_recommender.log"
+
+# Testing settings
+test:
+  # Test data directory
+  data_dir: "./tests/data"
+  # Number of sample tracks for integration test
+  sample_size: 10

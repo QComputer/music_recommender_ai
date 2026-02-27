@@ -1,0 +1,44 @@
+# Core dependencies
+numpy>=1.21.0
+pandas>=2.0.0
+pyyaml>=6.0
+
+# Audio processing
+librosa>=0.10.0
+soundfile>=0.12.0
+
+# Metadata extraction
+mutagen>=1.47.0
+# tinytag>=1.8.0  # Alternative to mutagen
+
+# Feature extraction and ML
+scikit-learn>=1.3.0
+
+# Similarity search (optional but recommended)
+# faiss-cpu>=1.7.0  # For large libraries
+# hnswlib>=0.7.0   # For even faster search
+
+# API
+fastapi>=0.100.0
+uvicorn>=0.23.0
+
+# CLI
+click>=8.1.0
+
+# Optional: deep learning for embeddings
+# tensorflow>=2.12.0  # For VGGish/YAMNet embeddings
+# tensorflow-hub>=0.14.0
+
+# Optional: visualization for EDA
+# jupyter>=1.0.0
+# matplotlib>=3.7.0
+# seaborn>=0.12.0
+# umap-learn>=0.5.0
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+
+# Development
+black>=23.0.0
+flake8>=6.0.0
